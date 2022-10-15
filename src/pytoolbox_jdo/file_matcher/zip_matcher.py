@@ -12,7 +12,7 @@ from .tar_matcher import TarFileMatcher
 class ZipFileMatcher(TarFileMatcher):
     """Unpack zip files into a cache directory"""
 
-    extension = "zip"
+    extension = ["zip"]
 
     def extractall(self, fname, outdir, *args, **kvargs):
         """Extract all files into outdir"""

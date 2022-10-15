@@ -3,10 +3,10 @@
 
 """GitFileMatcher"""
 
-from datetime import datetime
 import os
 from os import PathLike
-from typing import Any
+from datetime import datetime
+from typing import Any, Mapping
 from pathlib import Path
 from urllib.parse import urlparse
 from .base_file_matcher import BaseFileMatcher
@@ -15,9 +15,6 @@ from ..git_utils import Git
 
 class GitFileMatcher(BaseFileMatcher):
     """Make git files accessible"""
-
-    def match(self, _fname: str | PathLike, git=None, **kvargs) -> bool:
-        return bool(git)
 
     def cache_filename(self, fname: str|PathLike) -> str:
         """Determine the cache file name"""
@@ -34,7 +31,7 @@ class GitFileMatcher(BaseFileMatcher):
 
         return project
 
-    def update_cache(self, fname: str|PathLike, cached_file: Path, *args, **kvargs):
+    def update_cache(self, fname: str|PathLike, cached_file: Path, **kvargs):
         # Github does not support "git archive --remote=http://".
 
         cwd = cached_file
@@ -69,13 +66,13 @@ class GitFileMatcher(BaseFileMatcher):
     def open_uncached(self, fname: str|PathLike, *args, **kvargs) -> Any:
         pass
 
-    def open(self, fname: str|PathLike, *args, **kvargs) -> Any:
-        git = kvargs.get("git", None)
+    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
+        git = kvargs.pop("git", None)
         if not git:
-            raise AttributeError(f"Missing the mandatory 'repo' arguments: {fname}")
+            return None, kvargs
 
-        file = self.get_or_update_cache(git, *args, **kvargs)
+        file = self.get_or_update_cache(git, **kvargs)
         if file is None:
-            return file
+            return file, kvargs
 
-        return file / fname
+        return file / fname, kvargs

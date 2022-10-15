@@ -6,11 +6,11 @@
 import abc
 from os import PathLike
 from pathlib import Path
-from typing import Any
-from ..file_cache import FileType
+from typing import Any, Mapping
+from ..file_cache import FileTypeHandler
 
 
-class BaseFileMatcher(FileType, metaclass=abc.ABCMeta):
+class BaseFileMatcher(FileTypeHandler, metaclass=abc.ABCMeta):
     """An abstract base class, extending FileMatcher, providing
     common functionalities for a number of concrete FileMatcher
     implementations.
@@ -18,7 +18,7 @@ class BaseFileMatcher(FileType, metaclass=abc.ABCMeta):
 
     def cache_filename(self, fname: str|PathLike) -> str:
         """Determine the cache file name, e.g. myfiles.csv.gz => myfiles.csv"""
-        return Path(fname).stem
+        return Path(fname).name
 
     def cache_path(self, fname: str|PathLike) -> None|Path:
         """Cache directory + cache file"""
@@ -47,13 +47,17 @@ class BaseFileMatcher(FileType, metaclass=abc.ABCMeta):
         if cached_file and cached_file.exists():
             cached_file.unlink()
 
-    def update_cache(self, fname: str|PathLike, cached_file: Path, *args, **kvargs):
+    @abc.abstractmethod
+    def open_uncached(self, fname: str|PathLike, *args, **kvargs) -> Any:
+        """Open the uncached file"""
+
+    def update_cache(self, fname: str|PathLike, cached_file: Path, **kvargs):
         """Update the cache"""
-        with self.open_uncached(fname, "rb", *args, **kvargs) as infile:
+        with self.open_uncached(fname, "rb", **kvargs) as infile:
             with open(cached_file, "wb") as outfile:
                 outfile.write(infile.read())
 
-    def get_or_update_cache(self, fname: str | PathLike, *args, **kvargs) -> None|Path:
+    def get_or_update_cache(self, fname: str|PathLike, **kvargs) -> None|Path:
         """Update the cache if necessary and return the cache file"""
         if not self.cache_dir:
             return None
@@ -66,35 +70,27 @@ class BaseFileMatcher(FileType, metaclass=abc.ABCMeta):
             self.cache_dir.mkdir()
 
         if not cached_file.exists():
-            self.update_cache(fname, cached_file, *args, **kvargs)
+            self.update_cache(fname, cached_file, **kvargs)
         elif not self.is_cache_eligible(cached_file, fname):
-            self.update_cache(fname, cached_file, *args, **kvargs)
+            self.update_cache(fname, cached_file, **kvargs)
 
         return cached_file if cached_file.exists() else None
 
-    def open(self, fname: str|PathLike, *args, **kvargs) -> Any:
-        """Open the file, or return None"""
-        file = self.get_or_update_cache(fname)
-        if file is None:
-            file = Path(fname)
-            return self.open_uncached(file, *args, **kvargs)
+    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
+        return self.get_or_update_cache(fname, **kvargs), kvargs
 
-        # pylint: disable=unspecified-encoding
-        rtn = file.open(*args, **kvargs)
 
-        # Remember the file name use to open it
-        assert not hasattr(rtn, "fspath")
-        setattr(rtn, "fspath", file)
-
-        return rtn
-
-    def split_container(self, fname, ext):
+    def split_container(self, fname, extensions: list[str]):
         """Split e.g. ./my.tar.gz/file.txt into (./my.tar.gz, file.txt)"""
 
         fname = str(fname).replace("\\", "/")
-        pos = fname.find(f".{ext}/")
-        if pos == -1:
-            return fname, None
+        for ext in extensions:
+            if fname.endswith(f".{ext}"):
+                return fname, None
 
-        pos = pos + len(ext) + 1
-        return fname[:pos], fname[pos + 1:]
+            pos = fname.find(f".{ext}/")
+            if pos != -1:
+                pos = pos + len(ext) + 1
+                return fname[:pos], fname[pos + 1:]
+
+        return None, None

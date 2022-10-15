@@ -3,6 +3,6 @@
 
 from .pyconfig import Config
 
-from .file_cache import FileCache, FileType
+from .file_cache import FileCache, FileTypeHandler
 from .file_matcher import BaseFileMatcher, CloudFileMatcher, GzFileMatcher
-from .file_matcher import TarFileMatcher, ZipFileMatcher
+from .file_matcher import TarFileMatcher, ZipFileMatcher, GitFileMatcher

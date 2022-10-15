@@ -3,34 +3,28 @@
 
 """GzFileMatcher"""
 
+from pathlib import Path
 import os
 from os import PathLike
 import gzip
-from typing import Any
+from typing import Any, Mapping
 from .base_file_matcher import BaseFileMatcher
 
 
 class GzFileMatcher(BaseFileMatcher):
     """Unzip GZ files and cache for faster access"""
 
-    def match(self, fname: str | PathLike, **kvargs) -> bool:
-        # We also want to support ./dir/my.tar.gz/subdir/file.txt
-        fname = str(fname).replace(r"\\", "/")
-        if ".gz/" in fname:
-            return True
-
-        return fname.endswith(".gz") and os.path.isfile(fname)
+    def cache_filename(self, fname: str|PathLike) -> str:
+        """Determine the cache file name, e.g. myfiles.csv.gz => myfiles.csv"""
+        return Path(fname).stem
 
     def open_uncached(self, fname: str|PathLike, *args, **kvargs) -> Any:
         return gzip.open(fname, *args, **kvargs)
 
-    def open(self, fname: str|PathLike, *args, **kvargs) -> Any:
-        gz_file, fpath = self.split_container(fname, "gz")
-        file = super().open(gz_file, *args, **kvargs)
+    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
+        # We also want to support ./dir/my.tar.gz/subdir/file.txt
+        fname = str(fname)
+        if not os.path.isfile(fname) or not fname.endswith(".gz"):
+            return None, kvargs
 
-        # Convert e.g. ./my.tar.gz/myfile.txt => ./my.tar/myfile.txt
-        fspath = getattr(file, "fspath", None)
-        if fspath is not None and fpath:
-            setattr(file, "fspath", fspath / fpath)
-
-        return file
+        return self.get_or_update_cache(fname, **kvargs), kvargs

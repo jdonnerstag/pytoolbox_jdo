@@ -1,30 +1,27 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-"""
-"""
+"""CloudFileMatcher"""
 
 from os import PathLike
-from typing import Any
+from pathlib import Path
+from typing import Any, Mapping
 from cloudpathlib import CloudPath, AnyPath
-from ..file_cache import FileType
+from ..file_cache import FileTypeHandler
 
 
-class CloudFileMatcher(FileType):
+class CloudFileMatcher(FileTypeHandler):
     """Files stored somewhere in S3 or other providers
 
     TODO This implementation is without caching. You need to configure
     the CloudPath default clients to enable caching.
     """
-    def match(self, _fname: str | PathLike, **kvargs) -> bool:
-        """True, if the matcher is able to handle this file"""
-        return isinstance(AnyPath(_fname), CloudPath)
 
-    def open_uncached(self, fname: str|PathLike, *args, **kvargs) -> Any:
-        return self.open(fname, *args, **kvargs)
-
-    def open(self, fname: str|PathLike, *args, **kvargs) -> Any:
+    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
         """Open the (cached) file"""
-        file = CloudPath(str(fname))
-        with file.open(*args, **kvargs):
-            return file
+        fpath = AnyPath(fname)
+        if isinstance(fpath, CloudPath):
+            with fpath.open("rb", **kvargs):
+                return Path(fpath.fspath), kvargs
+
+        return None, kvargs

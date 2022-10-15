@@ -16,14 +16,13 @@ from os import PathLike
 from pathlib import Path
 import shutil
 import tempfile
-from typing import Any
-from cloudpathlib import AnyPath
+from typing import Any, Mapping
 from . import logging
 
 logger = logging.get_logger(__name__, logging.DEBUG)
 
 
-class FileType(metaclass=abc.ABCMeta):
+class FileTypeHandler(metaclass=abc.ABCMeta):
     """This is the (abstract) based class for all FileMatchers.
 
     Every concrete implementation may handle a differnt aspect, e.g
@@ -37,15 +36,7 @@ class FileType(metaclass=abc.ABCMeta):
         self.cache_dir = cache_dir
 
     @abc.abstractmethod
-    def match(self, _fname: str | PathLike, **kvargs) -> bool:
-        """True, if the matcher is able to handle this file"""
-
-    @abc.abstractmethod
-    def open_uncached(self, fname: str|PathLike, *args, **kvargs) -> Any:
-        """Open the uncached file"""
-
-    @abc.abstractmethod
-    def open(self, fname: str|PathLike, *args, **kvargs) -> Any:
+    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
         """Do whatever is necessary to open the file.
 
         Note that strictly speaking the return value doesn't have to be a
@@ -75,27 +66,18 @@ class FileCache:
         cache_dir.mkdir(exist_ok=True)
         return cache_dir
 
-    def __init__(self, cache_dir:None|Path) -> None:
+    def __init__(self, cache_dir:Path) -> None:
         self.cache_dir = cache_dir
-        self.repo: list[FileType] = []
+        self.repo: list[FileTypeHandler] = []
 
-    def register(self, matcher: FileType, insert:int=-1):
+    def register(self, matcher: FileTypeHandler, insert:int=-1):
         """Register an additional matcher"""
         if insert <= 0:
             self.repo.append(matcher)
         else:
             self.repo.insert(insert, matcher)
 
-    def get_matcher(self, fname: str | PathLike, **kvargs) -> None | FileType:
-        """Find the first FileMatcher able to process the file"""
-
-        for matcher in self.repo:
-            if matcher.match(fname, **kvargs):
-                return matcher
-
-        return None
-
-    def open(self, fname: str | PathLike, *args, **kvargs) -> Any:
+    def resolve(self, fname: str | PathLike, **kvargs) -> None|str|PathLike:
         """Do whatever is necessary to open the file.
 
         E.g. download, uncompress, unpack, etc.
@@ -106,38 +88,20 @@ class FileCache:
         Often you want to access a file from the tar or zip file,
         which is also possible, e.g. ./my.zip/subdir/file.dat,
         """
-        if isinstance(fname, bytes):
-            # pylint: disable=unspecified-encoding
-            return open(fname, *args, **kvargs)
+        file: None | str | PathLike = fname
+        i = 0
+        while i < len(self.repo):
+            cached_file, kvargs = self.repo[i].resolve(file, **kvargs)
+            if cached_file:
+                i = 0
+                file = cached_file
+            else:
+                i += 1
 
-        file = None
-        while matcher := self.get_matcher(fname, **kvargs):
-            if file is not None:
-                try:
-                    file.close()
-                except:   # pylint: disable=bare-except
-                    pass
+        if isinstance(file, str) and os.path.exists(file):
+            file = Path(file)
 
-            logger.debug("FileRepo: apply %s to '%s'", str(matcher), fname)
-            file = matcher.open(fname, *args, **kvargs)
-
-            fspath = getattr(file, "fspath", None)
-            if fspath is None or fspath == str(fname):
-                return file
-
-            fname = fspath
-
-        if file:
-            return file
-
-        open_args = ["mode", "buffering", "encoding", "errors", "newline"]
-        kvargs = {k:v for k, v in kvargs.items() if k in open_args}
-        file = AnyPath(fname)
-        if isinstance(file, Path):
-            # pylint: disable=unspecified-encoding
-            return file.open(*args, **kvargs)
-
-        raise RuntimeError(f"This should never happen: {type(file)}")
+        return file
 
     def clear_cache(self, subdir: None|str=None):
         """Delete all files in the cache-dir"""

@@ -5,7 +5,7 @@
 
 import os
 from os import PathLike
-from typing import Any
+from typing import Any, Mapping
 from pathlib import Path
 import tarfile
 import shutil
@@ -15,18 +15,7 @@ from .base_file_matcher import BaseFileMatcher
 class TarFileMatcher(BaseFileMatcher):
     """Unpack tar files into a cache directory"""
 
-    extension = "tar"
-
-    def match(self, fname: str | PathLike, **kvargs) -> bool:
-        if kvargs.get(self.extension, None):
-            return True
-
-        # We also want to support ./dir/my.tar/subdir/file.txt
-        fname = str(fname).replace("\\", "/")
-        if f".{self.extension}/" in fname:
-            return True
-
-        return fname.endswith(f".{self.extension}") and os.path.isfile(fname)
+    extension = ["tar", "tar.gz"]
 
     def cache_filename(self, fname: PathLike) -> str:
         return Path(fname).name
@@ -48,24 +37,31 @@ class TarFileMatcher(BaseFileMatcher):
             tar.extractall(path=outdir)
 
     def open_uncached(self, fname: str|PathLike, *args, **kvargs) -> Any:
-        return tarfile.open(fname, "r")
+        suffix = str(fname).rsplit(".", maxsplit=1)[-1]
+        read = "r"
+        if suffix != "tar":
+            read = "r:" + suffix
 
-    def open(self, fname: str|PathLike, *args, **kvargs) -> Any:
-        container_file = kvargs.get(self.extension, None)
+        return tarfile.open(fname, read)
+
+    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
+        container_file = kvargs.pop(self.extension[0], None)
         if container_file:
-            fpath = str(fname)
-            if fpath[0] in "/\\":
-                fpath = fpath[1:]
+            fpath = fname
         else:
+            # We also want to support ./dir/my.tar/subdir/file.txt
             container_file, fpath = self.split_container(fname, self.extension)
+            if container_file is None:
+                return None, kvargs
 
-        file = self.get_or_update_cache(container_file, *args, **kvargs)
-        if file is None or not fpath:
-            return file
+        if not os.path.isfile(container_file):
+            return None, kvargs
 
-        # Only relevant for opening the zip file
-        kvargs.pop("pwd", None)
-        kvargs.pop(self.extension, None)
+        file = self.get_or_update_cache(container_file, **kvargs)
+        if file is None:
+            return None, kvargs
 
-        file = file / fpath
-        return file.open(*args, **kvargs)
+        if fpath is None:
+            return file, kvargs
+
+        return file / fpath, kvargs
