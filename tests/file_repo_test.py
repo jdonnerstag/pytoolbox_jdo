@@ -8,20 +8,20 @@ from pathlib import Path
 
 import pytest
 
-from pytoolbox_jdo import FileRepo, GzFileMatcher, TarFileMatcher
+from pytoolbox_jdo import FileCache, GzFileMatcher, TarFileMatcher
 from pytoolbox_jdo.file_matcher.zip_matcher import ZipFileMatcher
 from pytoolbox_jdo.file_matcher.git_matcher import GitFileMatcher
 from pytoolbox_jdo.file_matcher.cloud_file_matcher import CloudFileMatcher
 
 def test_constructor():
-    repo = FileRepo(cache_dir=FileRepo.default_tempdir())
+    repo = FileCache(cache_dir=FileCache.default_tempdir())
     assert repo.cache_dir and repo.cache_dir.is_dir()
 
-    repo = FileRepo(cache_dir=None)
+    repo = FileCache(cache_dir=None)
     assert repo.cache_dir is None
 
 def test_gz_no_cache_dir():
-    repo = FileRepo(cache_dir=None)
+    repo = FileCache(cache_dir=None)
     repo.register(GzFileMatcher("gz", repo.cache_subdir("gz")))
 
     file = "./tests/data/compress_test_file.txt"
@@ -31,7 +31,7 @@ def test_gz_no_cache_dir():
 
 
 def test_gz_with_cache_dir():
-    repo = FileRepo(cache_dir=FileRepo.default_tempdir())
+    repo = FileCache(cache_dir=FileCache.default_tempdir())
     assert repo.cache_dir is not None
     repo.register(GzFileMatcher("gz", repo.cache_subdir("gz")))
 
@@ -57,7 +57,7 @@ def test_gz_with_cache_dir():
             assert repo.cache_dir.samefile(fspath.parent.parent)
 
 def test_tar():
-    repo = FileRepo(cache_dir=FileRepo.default_tempdir())
+    repo = FileCache(cache_dir=FileCache.default_tempdir())
     repo.register(TarFileMatcher("tar", repo.cache_subdir("tar")))
     file = "./tests/data/tests.tar"
     cache = repo.open(file)
@@ -87,7 +87,7 @@ def test_tar():
 
 
 def test_tar_gz():
-    repo = FileRepo(cache_dir=FileRepo.default_tempdir())
+    repo = FileCache(cache_dir=FileCache.default_tempdir())
     repo.clear_cache()
 
     repo.register(TarFileMatcher("tar", repo.cache_subdir("tar")))
@@ -123,7 +123,7 @@ def test_tar_gz():
 
 
 def test_plain():
-    repo = FileRepo(cache_dir=FileRepo.default_tempdir())
+    repo = FileCache(cache_dir=FileCache.default_tempdir())
     repo.clear_cache()
 
     repo.register(TarFileMatcher("tar", repo.cache_subdir("tar")))
@@ -137,7 +137,7 @@ def test_plain():
 
 
 def test_zip():
-    repo = FileRepo(cache_dir=FileRepo.default_tempdir())
+    repo = FileCache(cache_dir=FileCache.default_tempdir())
     repo.clear_cache()
 
     repo.register(ZipFileMatcher("zip", repo.cache_subdir("zip")))
@@ -170,7 +170,7 @@ def test_zip():
             assert fd1.read() == fd2.read()
 
 def test_git():
-    repo = FileRepo(cache_dir=FileRepo.default_tempdir())
+    repo = FileCache(cache_dir=FileCache.default_tempdir())
     repo.clear_cache()
 
     repo.register(GitFileMatcher("git", repo.cache_subdir("git")))
@@ -210,7 +210,7 @@ def test_git():
 def test_cloudpath():
     print("Run (slow) cloud test")
 
-    repo = FileRepo(cache_dir=FileRepo.default_tempdir())
+    repo = FileCache(cache_dir=FileCache.default_tempdir())
     repo.clear_cache()
 
     repo.register(TarFileMatcher("tar", repo.cache_subdir("tar")))

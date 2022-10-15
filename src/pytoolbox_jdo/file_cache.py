@@ -17,13 +17,13 @@ from pathlib import Path
 import shutil
 import tempfile
 from typing import Any
-from cloudpathlib import CloudPath, AnyPath
+from cloudpathlib import AnyPath
 from . import logging
 
 logger = logging.get_logger(__name__, logging.DEBUG)
 
 
-class FileMatcher(metaclass=abc.ABCMeta):
+class FileType(metaclass=abc.ABCMeta):
     """This is the (abstract) based class for all FileMatchers.
 
     Every concrete implementation may handle a differnt aspect, e.g
@@ -54,7 +54,7 @@ class FileMatcher(metaclass=abc.ABCMeta):
         """
 
 
-class FileRepo:
+class FileCache:
     """Provide easy access to files which might be in the cloud,
     compressed (e.g. *.gz), or file containers (*.tar).
 
@@ -77,16 +77,16 @@ class FileRepo:
 
     def __init__(self, cache_dir:None|Path) -> None:
         self.cache_dir = cache_dir
-        self.repo: list[FileMatcher] = []
+        self.repo: list[FileType] = []
 
-    def register(self, matcher: FileMatcher, insert:int=-1):
+    def register(self, matcher: FileType, insert:int=-1):
         """Register an additional matcher"""
         if insert <= 0:
             self.repo.append(matcher)
         else:
             self.repo.insert(insert, matcher)
 
-    def get_matcher(self, fname: str | PathLike, **kvargs) -> None | FileMatcher:
+    def get_matcher(self, fname: str | PathLike, **kvargs) -> None | FileType:
         """Find the first FileMatcher able to process the file"""
 
         for matcher in self.repo:

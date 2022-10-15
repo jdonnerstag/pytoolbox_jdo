@@ -7,10 +7,10 @@ import abc
 from os import PathLike
 from pathlib import Path
 from typing import Any
-from ..file_repo import FileMatcher
+from ..file_cache import FileType
 
 
-class BaseFileMatcher(FileMatcher, metaclass=abc.ABCMeta):
+class BaseFileMatcher(FileType, metaclass=abc.ABCMeta):
     """An abstract base class, extending FileMatcher, providing
     common functionalities for a number of concrete FileMatcher
     implementations.

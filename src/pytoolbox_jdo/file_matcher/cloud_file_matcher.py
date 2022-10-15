@@ -7,10 +7,10 @@
 from os import PathLike
 from typing import Any
 from cloudpathlib import CloudPath, AnyPath
-from ..file_repo import FileMatcher
+from ..file_cache import FileType
 
 
-class CloudFileMatcher(FileMatcher):
+class CloudFileMatcher(FileType):
     """Files stored somewhere in S3 or other providers
 
     TODO This implementation is without caching. You need to configure
