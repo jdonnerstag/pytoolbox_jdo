@@ -60,6 +60,9 @@ class GitFileMatcher(BaseFileMatcher):
         if revision:
             git.git_exec(["reset", "--hard", revision])
 
+        # TODO If we wanted parallel access, then we may need to make a copy into
+        #      a separate directory
+
     def is_cache_eligible(self, _cached_file: Path, _mtime_source: int) -> bool:
         return False
 

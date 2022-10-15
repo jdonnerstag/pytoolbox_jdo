@@ -11,6 +11,7 @@ import pytest
 from pytoolbox_jdo import FileRepo, GzFileMatcher, TarFileMatcher
 from pytoolbox_jdo.file_matcher.zip_matcher import ZipFileMatcher
 from pytoolbox_jdo.file_matcher.git_matcher import GitFileMatcher
+from pytoolbox_jdo.file_matcher.cloud_file_matcher import CloudFileMatcher
 
 def test_constructor():
     repo = FileRepo(cache_dir=FileRepo.default_tempdir())
@@ -203,3 +204,24 @@ def test_git():
     assert cache
     assert repo.cache_dir
     assert cache.samefile(repo.cache_dir / "git/pyfile_spec/.gitignore")
+
+
+@pytest.mark.slow
+def test_cloudpath():
+    print("Run (slow) cloud test")
+
+    repo = FileRepo(cache_dir=FileRepo.default_tempdir())
+    repo.clear_cache()
+
+    repo.register(TarFileMatcher("tar", repo.cache_subdir("tar")))
+    repo.register(GzFileMatcher("gz", repo.cache_subdir("gz")))
+    repo.register(CloudFileMatcher("cloud", repo.cache_subdir("cloud")))
+
+    # For this to work, you must have ~\.aws\config properly set up
+    file = "s3://genome-idx/lev/chm13v2-grch38.tar.gz"
+    for file in repo.open(file).glob("**/*.*"):
+        print(file)
+
+    file = "s3://genome-idx/lev/chm13v2-grch38.tar.gz"
+    for file in repo.open(file).glob("**/*.*"):
+        print(file)

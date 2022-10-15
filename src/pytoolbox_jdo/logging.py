@@ -18,7 +18,8 @@ from .pyconfig import Config
 def configure(config: Config, path: str):
     """Configure logging with log configs taken from Config"""
 
-    logging.config.dictConfig(config.get(path))
+    log_cfg = config.to_dict(path, substitute=True)
+    logging.config.dictConfig(log_cfg)
 
     logger.info(
         "Starting with: %s %s", os.path.basename(sys.argv[0]), " ".join(sys.argv[1:])
@@ -85,7 +86,7 @@ class LogRedirector:
 
         # Get references to the console and application handlers
         self._console_handler = self.handler_by_name("console")
-        self._app_handler = self.handler_by_name("pil_engine")
+        self._app_handler = self.handler_by_name("xxx_engine")
 
     def handler_by_name(self, name: str):
         """Find log handler by name"""

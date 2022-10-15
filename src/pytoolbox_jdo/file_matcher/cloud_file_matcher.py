@@ -26,4 +26,5 @@ class CloudFileMatcher(FileMatcher):
     def open(self, fname: str|PathLike, *args, **kvargs) -> Any:
         """Open the (cached) file"""
         file = CloudPath(str(fname))
-        return file.open(*args, **kvargs)
+        with file.open(*args, **kvargs):
+            return file

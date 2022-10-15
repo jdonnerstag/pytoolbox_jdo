@@ -18,6 +18,9 @@ import shutil
 import tempfile
 from typing import Any
 from cloudpathlib import CloudPath, AnyPath
+from . import logging
+
+logger = logging.get_logger(__name__, logging.DEBUG)
 
 
 class FileMatcher(metaclass=abc.ABCMeta):
@@ -109,6 +112,13 @@ class FileRepo:
 
         file = None
         while matcher := self.get_matcher(fname, **kvargs):
+            if file is not None:
+                try:
+                    file.close()
+                except:   # pylint: disable=bare-except
+                    pass
+
+            logger.debug("FileRepo: apply %s to '%s'", str(matcher), fname)
             file = matcher.open(fname, *args, **kvargs)
 
             fspath = getattr(file, "fspath", None)
@@ -120,13 +130,10 @@ class FileRepo:
         if file:
             return file
 
-        kvargs = {k:v for k, v in kvargs.items() if k in ["mode", "buffering", "encoding", "errors", "newline"]}
+        open_args = ["mode", "buffering", "encoding", "errors", "newline"]
+        kvargs = {k:v for k, v in kvargs.items() if k in open_args}
         file = AnyPath(fname)
         if isinstance(file, Path):
-            # pylint: disable=unspecified-encoding
-            return file.open(*args, **kvargs)
-
-        if isinstance(file, CloudPath):
             # pylint: disable=unspecified-encoding
             return file.open(*args, **kvargs)
 
