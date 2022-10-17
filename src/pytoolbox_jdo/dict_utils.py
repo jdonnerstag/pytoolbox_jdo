@@ -6,7 +6,7 @@
 from typing import Any, Mapping, MutableMapping
 
 
-def path_split(path: str|list[str], *, separator:str=".") -> list[str]:
+def path_split(path: str | list[str], *, separator: str = ".") -> list[str]:
     """Split the path by the configured separator, and remove empty elements"""
 
     if isinstance(path, str):
@@ -17,8 +17,13 @@ def path_split(path: str|list[str], *, separator:str=".") -> list[str]:
 
 __MISSING__ = object()
 
+
 def deep_get(
-    _dict: Mapping[str, Any], _keys: str | list[str], *, default=__MISSING__, separator: str = "."
+    _dict: Mapping[str, Any],
+    _keys: str | list[str],
+    *,
+    default=__MISSING__,
+    separator: str = ".",
 ) -> Any:
     """Walk the keys to determine the value.
 
@@ -32,10 +37,7 @@ def deep_get(
     """
     _keys = path_split(_keys, separator=separator)
     if not _keys:
-        if default != __MISSING__:
-            return default
-
-        raise KeyError("deep_get(): 'key' must not be empty")
+        return _dict
 
     try:
         for _elem in _keys:
@@ -48,6 +50,7 @@ def deep_get(
 
         raise
 
+
 def deep_set(
     _dict: MutableMapping[str, Any],
     _keys: str | list[str],
@@ -55,7 +58,7 @@ def deep_set(
     *,
     create: bool = False,
     replace: bool = True,
-    separator: str = "."
+    separator: str = ".",
 ):
     """Set the value for the (deep) key
 
@@ -85,8 +88,8 @@ def deep_set(
         _dict[last] = value
     else:
         raise KeyError(
-            f"Entry already exists: {_keys}. "
-            "Use 'replace=True' to replace")
+            f"Entry already exists: {_keys}. " "Use 'replace=True' to replace"
+        )
 
 
 def deep_delete(
@@ -117,7 +120,7 @@ def deep_delete(
     return rtn
 
 
-def deep_iter(_dict: Mapping, parent:None|list=None):
+def deep_iter(_dict: Mapping, parent: None | list = None):
     """Recursively iterate through all key/value pairs"""
 
     parent = parent or []

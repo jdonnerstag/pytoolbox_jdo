@@ -15,9 +15,11 @@ from pytoolbox_jdo import CloudFileMatcher
 
 data_dir = Path(__file__).parent / "data"
 
+
 def test_constructor():
     repo = FileCache(cache_dir=FileCache.default_tempdir())
     assert repo.cache_dir and repo.cache_dir.is_dir()
+
 
 def test_gz():
     repo = FileCache(cache_dir=FileCache.default_tempdir())
@@ -40,6 +42,7 @@ def test_gz():
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
         with open(file, mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
+
 
 def test_tar():
     repo = FileCache(cache_dir=FileCache.default_tempdir())
@@ -173,6 +176,7 @@ def test_zip():
         with open(data_dir / "./config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
+
 def test_git():
     repo = FileCache(cache_dir=FileCache.default_tempdir())
     repo.clear_cache()
@@ -181,30 +185,50 @@ def test_git():
 
     # Works with revision, but also branches
     # https://github.com/<user>/<project>/tree/<commit-hash>
-    cached_file = repo.resolve(".gitignore", git="https://github.com/jdonnerstag/pyfile_spec", revision="master")
+    cached_file = repo.resolve(
+        ".gitignore",
+        git="https://github.com/jdonnerstag/pyfile_spec",
+        revision="master",
+    )
     assert isinstance(cached_file, Path)
     assert repo.cache_dir
     assert cached_file.samefile(repo.cache_dir / "git/pyfile_spec/.gitignore")
 
     # 2nd attempt with cache already loaded
-    cached_file = repo.resolve(".gitignore", git="https://github.com/jdonnerstag/pyfile_spec", revision="master")
+    cached_file = repo.resolve(
+        ".gitignore",
+        git="https://github.com/jdonnerstag/pyfile_spec",
+        revision="master",
+    )
     assert isinstance(cached_file, Path)
     assert repo.cache_dir
     assert cached_file.samefile(repo.cache_dir / "git/pyfile_spec/.gitignore")
 
     # Pull is rather expensive, hence do it only on request
-    cached_file = repo.resolve(".gitignore", git="https://github.com/jdonnerstag/pyfile_spec", pull=True)
+    cached_file = repo.resolve(
+        ".gitignore", git="https://github.com/jdonnerstag/pyfile_spec", pull=True
+    )
     assert isinstance(cached_file, Path)
     assert repo.cache_dir
     assert cached_file.samefile(repo.cache_dir / "git/pyfile_spec/.gitignore")
 
     # The 'initial' branch is remotely available, but not yet locally. Hence pull=True
-    cached_file = repo.resolve(".gitignore", git="https://github.com/jdonnerstag/pyfile_spec", branch="initial", pull=True)
+    cached_file = repo.resolve(
+        ".gitignore",
+        git="https://github.com/jdonnerstag/pyfile_spec",
+        branch="initial",
+        pull=True,
+    )
     assert isinstance(cached_file, Path)
     assert repo.cache_dir
     assert cached_file.samefile(repo.cache_dir / "git/pyfile_spec/.gitignore")
 
-    cached_file = repo.resolve(".gitignore", git="https://github.com/jdonnerstag/pyfile_spec", branch="master", effective_date=datetime(2022, 9, 1))
+    cached_file = repo.resolve(
+        ".gitignore",
+        git="https://github.com/jdonnerstag/pyfile_spec",
+        branch="master",
+        effective_date=datetime(2022, 9, 1),
+    )
     assert isinstance(cached_file, Path)
     assert repo.cache_dir
     assert cached_file.samefile(repo.cache_dir / "git/pyfile_spec/.gitignore")

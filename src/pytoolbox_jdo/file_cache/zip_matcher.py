@@ -19,7 +19,7 @@ class ZipFileMatcher(TarFileMatcher):
         with self.open_uncached(fname, *args, **kvargs) as zipfd:
             zipfd.extractall(path=outdir)
 
-    def open_uncached(self, fname: str|PathLike, *args, **kvargs) -> Any:
+    def open_uncached(self, fname: str | PathLike, *args, **kvargs) -> Any:
         password = kvargs.pop("pwd", None)
         rtn = zipfile.ZipFile(fname, "r")
         if password:

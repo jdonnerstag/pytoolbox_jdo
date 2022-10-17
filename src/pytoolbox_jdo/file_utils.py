@@ -33,7 +33,7 @@ def create_filename(*paths):
     return file
 
 
-def split_path(file: str) -> tuple[AnyPath, str|None]:
+def split_path(file: str) -> tuple[AnyPath, str | None]:
     """Split the filename into the static part and flexible part
 
     E.g. it is possible to have **/*.xlsx in the flexible part
@@ -50,7 +50,7 @@ def split_path(file: str) -> tuple[AnyPath, str|None]:
     return AnyPath(dirpart), filepart
 
 
-def glob_argv_files(files: None|str|list[str]):
+def glob_argv_files(files: None | str | list[str]):
     """On Linux cmdline args are globbed. On Windows they are not."""
     if not files:
         return None
@@ -69,7 +69,7 @@ def glob_argv_files(files: None|str|list[str]):
 
         # Pylint false-positive :(#
         # pylint: disable=no-member
-        gen = (dirpart / file for file in dirpart.glob(filepart))   # type: ignore
+        gen = (dirpart / file for file in dirpart.glob(filepart))  # type: ignore
         rtn.extend(gen)
 
     return rtn
@@ -85,7 +85,7 @@ def mkdir(fname, mode=0o777, deep=False):
             os.mkdir(dirname, mode=mode)
 
 
-'''
+"""
 def filterFilesByDate(files, dt):
     if not dt:
         return files
@@ -469,4 +469,4 @@ def converters_from_fileConfig(fileConfig):
         field["name"]: field.get("pd.read.converters")
         for field in fileConfig.FIELDSPECS
     }
-'''
+"""

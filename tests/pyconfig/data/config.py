@@ -73,9 +73,7 @@ CONFIG = {
             "customer_account": FUNC("CUSTOMER_ACCOUNT"),
         },
     },
-    "invalid": {
-        "missing": "{does-not-exist}"
-    },
+    "invalid": {"missing": "{does-not-exist}"},
     "escape": {
         # Escape it. Do not replace the placeholder.
         "no_replace": "\\{project_root\\}"

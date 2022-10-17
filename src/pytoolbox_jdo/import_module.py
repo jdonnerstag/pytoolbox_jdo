@@ -11,6 +11,7 @@ from pathlib import Path
 # Track the module and file name of module already imported
 modules: dict[str, Path] = {}
 
+
 def import_module_from_file(file: Path):
     """Import a python module from a file location.
 
@@ -29,7 +30,8 @@ def import_module_from_file(file: Path):
     if modules.get(name, file) != file:
         raise AttributeError(
             f"A module with the same name has already been imported: "
-            f"'{name}', file-1={modules.get(name)}, file-2={file}")
+            f"'{name}', file-1={modules.get(name)}, file-2={file}"
+        )
 
     # VS Code automatically adds the cwd, but pytest doesn't.
     # Make sure we always add the cwd.

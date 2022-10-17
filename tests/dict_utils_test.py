@@ -16,21 +16,13 @@ def test_path_split():
     assert du.path_split("/a/b/c", separator="/") == ["a", "b", "c"]
     assert du.path_split("/a/b/c/", separator="/") == ["a", "b", "c"]
 
+
 def test_deep_get():
     d = dict(a=1, b=2, c="cc", d=dict(key="kkkk"))
 
-    with pytest.raises(Exception):
-        du.deep_get(d, "")
-
-    with pytest.raises(Exception):
-        du.deep_get(d, [])
-
-    with pytest.raises(Exception):
-        du.deep_get(d, ".")
-
-    assert du.deep_get(d, "", default=None) is None
-    assert du.deep_get(d, [], default=None) is None
-    assert du.deep_get(d, ".", default=None) is None
+    assert du.deep_get(d, "") == d
+    assert du.deep_get(d, []) == d
+    assert du.deep_get(d, ".") == d
 
     assert du.deep_get(d, "a") == 1
     assert du.deep_get(d, ["a"]) == 1
@@ -68,6 +60,7 @@ def test_deep_set():
 
     du.deep_set(d, "b1.b3", 55, replace=True)
     assert du.deep_get(d, "b1.b3") == 55
+
 
 def test_deep_del():
     d = dict(a=1, b=2, c="cc", d=dict(key="kkkk"))

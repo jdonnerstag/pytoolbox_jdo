@@ -36,7 +36,7 @@ class TarFileMatcher(BaseFileMatcher):
         with self.open_uncached(fname) as tar:
             tar.extractall(path=outdir)
 
-    def open_uncached(self, fname: str|PathLike, *args, **kvargs) -> Any:
+    def open_uncached(self, fname: str | PathLike, *args, **kvargs) -> Any:
         suffix = str(fname).rsplit(".", maxsplit=1)[-1]
         read = "r"
         if suffix != "tar":
@@ -44,7 +44,9 @@ class TarFileMatcher(BaseFileMatcher):
 
         return tarfile.open(fname, read)
 
-    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
+    def resolve(
+        self, fname: str | PathLike, **kvargs
+    ) -> tuple[None | Path, Mapping[str, Any]]:
         container_file = kvargs.pop(self.extension[0], None)
         if container_file:
             fpath = fname

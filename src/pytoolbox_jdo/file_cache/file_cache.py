@@ -36,7 +36,9 @@ class FileTypeHandler(metaclass=abc.ABCMeta):
         self.cache_dir = cache_dir
 
     @abc.abstractmethod
-    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
+    def resolve(
+        self, fname: str | PathLike, **kvargs
+    ) -> tuple[None | Path, Mapping[str, Any]]:
         """Do whatever is necessary to open the file.
 
         Note that strictly speaking the return value doesn't have to be a
@@ -66,18 +68,18 @@ class FileCache:
         cache_dir.mkdir(exist_ok=True)
         return cache_dir
 
-    def __init__(self, cache_dir:Path) -> None:
+    def __init__(self, cache_dir: Path) -> None:
         self.cache_dir = cache_dir
         self.repo: list[FileTypeHandler] = []
 
-    def register(self, matcher: FileTypeHandler, insert:int=-1):
+    def register(self, matcher: FileTypeHandler, insert: int = -1):
         """Register an additional matcher"""
         if insert <= 0:
             self.repo.append(matcher)
         else:
             self.repo.insert(insert, matcher)
 
-    def resolve(self, fname: str | PathLike, **kvargs) -> None|str|PathLike:
+    def resolve(self, fname: str | PathLike, **kvargs) -> None | str | PathLike:
         """Do whatever is necessary to open the file.
 
         E.g. download, uncompress, unpack, etc.
@@ -103,7 +105,7 @@ class FileCache:
 
         return file
 
-    def clear_cache(self, subdir: None|str=None):
+    def clear_cache(self, subdir: None | str = None):
         """Delete all files in the cache-dir"""
 
         def on_rm_error(_func, path, _exc_info):
@@ -118,7 +120,6 @@ class FileCache:
             else:
                 shutil.rmtree(self.cache_dir, onerror=on_rm_error)
                 self.cache_dir.mkdir()
-
 
     def cache_subdir(self, subdir: str):
         """When creating a FileMatcher, it must be provided a cache-dir.

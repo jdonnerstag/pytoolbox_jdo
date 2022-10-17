@@ -17,6 +17,7 @@ def setup_module(_module):
     # This is a global variable and some test might have set it already
     pytoolbox_jdo.import_module.modules.clear()
 
+
 def test_constructor():
     modules.clear()
 

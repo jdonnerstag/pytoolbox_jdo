@@ -6,10 +6,6 @@
 from pytoolbox_jdo import dict_utils as du
 
 
-class EventException(Exception):
-    """EventException"""
-
-
 class Event(dict):
     """A generic event.
 

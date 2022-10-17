@@ -20,7 +20,9 @@ def execute_child_process(cmd: list[str], cwd: Path):
 
     cwd = Path(file_utils.create_filename(cwd))
     logger.debug("Exec (cwd: %s): %s", str(cwd), " ".join(cmd))
-    with Popen(cmd, cwd=cwd, shell=False, stdin=PIPE, stdout=PIPE, stderr=PIPE) as child:
+    with Popen(
+        cmd, cwd=cwd, shell=False, stdin=PIPE, stdout=PIPE, stderr=PIPE
+    ) as child:
         outs, errs = child.communicate()
         rtn_code = child.returncode
         rtn = None
@@ -46,7 +48,7 @@ def execute_child_process(cmd: list[str], cwd: Path):
 class Git:
     """A couple Git utility functions"""
 
-    def __init__(self, cwd: str|os.PathLike, git_exe="git") -> None:
+    def __init__(self, cwd: str | os.PathLike, git_exe="git") -> None:
         self.cwd = cwd
         self.git_exe = git_exe
 
@@ -62,7 +64,7 @@ class Git:
         assert isinstance(self.cwd, Path)
         return execute_child_process(cmd, self.cwd)
 
-    def determine_revision(self, effective_date:None|datetime, branch: None|str):
+    def determine_revision(self, effective_date: None | datetime, branch: None | str):
         """Determine which revision was effective in the branch at that time"""
         logger.debug(
             "Determine GIT revision for repo: %s; branch: %s, effective date: %s",

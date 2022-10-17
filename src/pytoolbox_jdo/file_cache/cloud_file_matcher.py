@@ -17,7 +17,9 @@ class CloudFileMatcher(FileTypeHandler):
     the CloudPath default clients to enable caching.
     """
 
-    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
+    def resolve(
+        self, fname: str | PathLike, **kvargs
+    ) -> tuple[None | Path, Mapping[str, Any]]:
         """Open the (cached) file"""
         fpath = AnyPath(fname)
         if isinstance(fpath, CloudPath):

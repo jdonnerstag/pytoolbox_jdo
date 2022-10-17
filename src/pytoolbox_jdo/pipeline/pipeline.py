@@ -27,7 +27,7 @@ class Pipeline(ContextDecorator):
     steps, initialize and shut them down, and invoke the steps in the
     defined sequence to process events."""
 
-    def __init__(self, step_class: Type, step_dir: None|Path):
+    def __init__(self, step_class: Type, step_dir: None | Path):
         """Constructor"""
         super().__init__()
 
@@ -55,7 +55,6 @@ class Pipeline(ContextDecorator):
             else:
                 raise PipelineException(f"Not a directory: {step_dir}")
 
-
     def add_pipeline(self, name: str):
         """Add a new pipeline (group of steps)"""
         self.pipelines.setdefault(name, [])
@@ -64,7 +63,6 @@ class Pipeline(ContextDecorator):
         """Add the step to an already registered pipeline"""
         assert isinstance(step, self.step_class)
         self.pipelines[name].append(step)
-
 
     def load_step(self, file: Path):
         """Load a PipelineStep from a file"""
@@ -75,8 +73,10 @@ class Pipeline(ContextDecorator):
         # directory (package), which is not what we want. Hence: raise an exception
         if mod.__package__ and (mod.__name__ == mod.__package__.split(".")[-1]):
             raise PipelineException(
-                "Directory and file have the same name, except for the extension. " +
-                "Please rename either: %s", file)
+                "Directory and file have the same name, except for the extension. "
+                + "Please rename either: %s",
+                file,
+            )
 
         # Make sure the module has a variable called ...
         if "STEP" not in dir(mod):
@@ -88,15 +88,17 @@ class Pipeline(ContextDecorator):
 
         if not issubclass(mod.STEP, self.step_class):
             raise PipelineException(
-                f"STEP objects must of type {self.step_class.__name__}: '{file}'")
+                f"STEP objects must of type {self.step_class.__name__}: '{file}'"
+            )
 
         # Call the constructor of the step
         try:
             obj = mod.STEP(self, mod.__name__)
             self.add_step(pipe_name, obj)
         except BaseException as ex:
-            raise PipelineException(f"Failed to instantiate pipeline step: {file}") from ex
-
+            raise PipelineException(
+                f"Failed to instantiate pipeline step: {file}"
+            ) from ex
 
     def load_pipeline(self, path: Path):
         """Load all files (python modules) from the directory specified (recursive).
@@ -122,7 +124,6 @@ class Pipeline(ContextDecorator):
         logger.info("Loaded %d pipelines and %d steps", len(pipeline), count)
         return self
 
-
     def foreach_step(self):
         """Loop over all Steps"""
 
@@ -132,8 +133,8 @@ class Pipeline(ContextDecorator):
                     yield step
                 except BaseException as ex:
                     raise PipelineException(
-                        f"Error while executing pipeline={k}, step='{step.step_name}'") from ex
-
+                        f"Error while executing pipeline={k}, step='{step.step_name}'"
+                    ) from ex
 
     def initialize(self):
         """Each step is an object of type PipelineStep, which has an initialize function.
@@ -149,7 +150,6 @@ class Pipeline(ContextDecorator):
 
         logger.info("Time spent to initialize: %s", self.elapsed(self.start_time))
 
-
     def finalize_steps(self):
         """Allow every step to clean up, when all events have been processed"""
 
@@ -160,7 +160,6 @@ class Pipeline(ContextDecorator):
             step.finalize()
 
         logger.info("Time spent on finalization: %s", self.elapsed(start_time))
-
 
     def on_new_event_file(self, data, file: Path):
         """Start processing a new event file.
@@ -174,8 +173,9 @@ class Pipeline(ContextDecorator):
         for step in self.foreach_step():
             step.on_new_event_file(data, file)
 
-        logger.info("Finished new-event-file received: %s in %s", file, self.elapsed(start_time))
-
+        logger.info(
+            "Finished new-event-file received: %s in %s", file, self.elapsed(start_time)
+        )
 
     def exec_step(self, _pipeline: str, step: PipelineStep, event: Event):
         """Possibly be subclassed, this function invokes a step to process the event"""
@@ -184,7 +184,7 @@ class Pipeline(ContextDecorator):
     def _exec_pipeline(self, pipeline: str, event):
         """Execute a specific pipeline"""
 
-        #logger.debug("Launch pipeline: '%s'", name)
+        # logger.debug("Launch pipeline: '%s'", name)
 
         pipe = self.pipelines[pipeline]
         for step in pipe:
@@ -194,10 +194,11 @@ class Pipeline(ContextDecorator):
                 if self.exec_step(pipeline, step, event) is True:
                     break
             except BaseException as ex:
-                raise PipelineException(f"Error while executing step={step.step_name}") from ex
+                raise PipelineException(
+                    f"Error while executing step={step.step_name}"
+                ) from ex
 
         # logger.debug("Finished with pipeline: '%s'", name)
-
 
     def process_event(self, pipeline: str, event: Event):
         """Execute the pipeline for event"""
@@ -219,14 +220,15 @@ class Pipeline(ContextDecorator):
         try:
             self._exec_pipeline(pipeline, event)
         except BaseException as ex:
-            raise PipelineException(f"Error while executing pipeline '{pipeline}'") from ex
+            raise PipelineException(
+                f"Error while executing pipeline '{pipeline}'"
+            ) from ex
 
         event.meta["time_finished"] = time.time()
         # print(event)
         # logger.debug(f"Finished processing event: {self.event_count}")
 
         return self
-
 
     @classmethod
     def elapsed(cls, start_time: float):
@@ -237,18 +239,18 @@ class Pipeline(ContextDecorator):
         minutes, seconds = divmod(remainder, 60)
         return f"{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
 
-
     def __enter__(self):
         self.initialize()
         self.finalize_steps()
 
         return self
 
-
     def __exit__(self, exc_type, exc_value, traceback):
         if not exc_type:
             elapsed = self.elapsed(self.start_time)
-            logger.info("Processed %d events in %s elapsed time", self.event_count, elapsed)
+            logger.info(
+                "Processed %d events in %s elapsed time", self.event_count, elapsed
+            )
 
             # Allow the steps to do post-processing activities
             self.finalize_steps()

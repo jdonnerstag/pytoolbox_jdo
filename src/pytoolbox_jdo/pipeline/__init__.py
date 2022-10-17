@@ -18,4 +18,4 @@ defined.
 
 from .event import Event
 from .pipeline_step import PipelineStep
-from .pipeline import Pipeline
+from .pipeline import Pipeline, PipelineException

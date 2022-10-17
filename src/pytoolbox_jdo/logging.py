@@ -31,7 +31,7 @@ def configure(config: Config, path: str):
         logger.info("Config: %s - %s", cfg, file)
 
 
-def get_logger(name: str, level: int|str=logging.INFO):
+def get_logger(name: str, level: int | str = logging.INFO):
     """Select the logger by its name"""
 
     mylogger = logging.getLogger(name)
@@ -72,7 +72,9 @@ class LogRedirector:
 
         # Configure a new FileHandler
         self._root_logger = root_logger = logging.getLogger("")
-        self._file_handler = _fh = logging.FileHandler(log_file, mode="a", encoding="utf8")
+        self._file_handler = _fh = logging.FileHandler(
+            log_file, mode="a", encoding="utf8"
+        )
         _fh.setLevel(logging.DEBUG)
         _fh.set_name("import_log")
         _fh.setFormatter(root_logger.handlers[0].formatter)

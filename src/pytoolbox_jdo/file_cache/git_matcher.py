@@ -16,7 +16,7 @@ from ..git_utils import Git
 class GitFileMatcher(BaseFileMatcher):
     """Make git files accessible"""
 
-    def cache_filename(self, fname: str|PathLike) -> str:
+    def cache_filename(self, fname: str | PathLike) -> str:
         """Determine the cache file name"""
         fname = str(fname).replace("\\", "/")
         if os.path.isdir(fname):
@@ -27,11 +27,13 @@ class GitFileMatcher(BaseFileMatcher):
         path = path.split("/")
         project = path[2] if len(path) > 2 else None
         if not project:
-            raise AttributeError(f"Invalid github url. Missing 'project name' in {fname}")
+            raise AttributeError(
+                f"Invalid github url. Missing 'project name' in {fname}"
+            )
 
         return project
 
-    def update_cache(self, fname: str|PathLike, cached_file: Path, **kvargs):
+    def update_cache(self, fname: str | PathLike, cached_file: Path, **kvargs):
         # Github does not support "git archive --remote=http://".
 
         cwd = cached_file
@@ -45,8 +47,12 @@ class GitFileMatcher(BaseFileMatcher):
 
         git = Git(cwd)
         if not revision and effective_date:
-            assert effective_date is None or isinstance(effective_date, datetime), f"Argument 'effective_date' must be a datetime: '{effective_date}'"
-            revision = git.determine_revision(effective_date=effective_date, branch=branch)
+            assert effective_date is None or isinstance(
+                effective_date, datetime
+            ), f"Argument 'effective_date' must be a datetime: '{effective_date}'"
+            revision = git.determine_revision(
+                effective_date=effective_date, branch=branch
+            )
         else:
             if branch:
                 git.git_exec(["checkout", branch])
@@ -63,10 +69,12 @@ class GitFileMatcher(BaseFileMatcher):
     def is_cache_eligible(self, _cached_file: Path, _mtime_source: int) -> bool:
         return False
 
-    def open_uncached(self, fname: str|PathLike, *args, **kvargs) -> Any:
+    def open_uncached(self, fname: str | PathLike, *args, **kvargs) -> Any:
         pass
 
-    def resolve(self, fname: str|PathLike, **kvargs) -> tuple[None|Path, Mapping[str, Any]]:
+    def resolve(
+        self, fname: str | PathLike, **kvargs
+    ) -> tuple[None | Path, Mapping[str, Any]]:
         git = kvargs.pop("git", None)
         if not git:
             return None, kvargs

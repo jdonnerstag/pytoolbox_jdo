@@ -7,7 +7,7 @@ import os
 import re
 import json
 from pathlib import Path
-from typing import Mapping, Match, MutableMapping, TypeVar, Any, cast
+from typing import Mapping, Match, MutableMapping, TypeVar, Any, cast, Iterator
 
 from .import_module import import_module_from_file
 from . import dict_utils as du
@@ -15,7 +15,8 @@ from . import dict_utils as du
 
 T = TypeVar("T")
 
-def force_list(item_or_list: T|list[T]) -> list[T]:
+
+def force_list(item_or_list: T | list[T]) -> list[T]:
     """If item is a single item of type T, then create a list[T] from it"""
     return item_or_list if isinstance(item_or_list, list) else [item_or_list]
 
@@ -25,6 +26,104 @@ __MISSING__ = object()
 # Pil config specific exception
 class ConfigException(Exception):
     """ConfigException"""
+
+
+class _ConfigRef(Mapping[str, Any]):
+    """Allow to pass subtrees around with exporting into dicts"""
+
+    def __init__(self, config: "Config", root: list[str]) -> None:
+        self.config = config
+        self.root = root
+
+    def to_dict(self, root: None | str | list[str] = None, substitute: bool = False):
+        """Create a dict of all the visible data. With 'root' provided,
+        only the config below this path are copied into a dir.
+        """
+        root = self.root + self.config.path_split(root)
+        return self.config.to_dict(root, substitute)
+
+    def get_value(self, path: str | list[str]):
+        """Get the config value corresponding to the 'path' provided.
+
+        The path separator can be provided. Default separator is '.'.
+        If the 'path' does not exist, return the 'default' value, which is
+        None by default.
+
+        get_value() return the raw-value. Consider using get() instead.
+        """
+        path = self.root + self.config.path_split(path)
+        return self.config.get_value(path)
+
+    def __contains__(self, path: str | list[str]) -> bool:
+        """Check if value referred to by 'path' exists in the config.
+        The path separator can be provided. Default separator is '.'.
+        If the 'path' does exist, return True else False.
+        """
+        path = self.root + self.config.path_split(path)
+        return self.config.__contains__(path)
+
+    def __getitem__(self, path: str | list[str]):
+        path = self.root + self.config.path_split(path)
+        return self.config.get(path)
+
+    def __len__(self) -> int:
+        return len(self.to_dict(self.root))
+
+    def get(self, key: str | list[str], default: Any = __MISSING__):
+        """Get the config value referred to by 'path'.
+
+        You may change the separator by providing a 'separator' parameter. Default is '.'.
+
+        Config values support placeholders {..} which will be replaced either with
+        data provided in 'params' or other config entries. 'params' must be a dict.
+        'default' is another supported argument, which will be returned, if the 'path'
+        does not resolve to a valid config entry.
+
+        If a path cannot be resolved, an exception is thrown if no 'default' parameter
+        has been provided.
+        """
+        path = self.root + self.config.path_split(key)
+        return self.config.get(path, default=default)
+
+    def set(self, path: str | list[str], value) -> None:
+        """Set a config value at 'path'"""
+
+        path = self.root + self.config.path_split(path)
+
+        obj = self.config.config[0]
+        if len(path) == 0:
+            raise ConfigException("Argument 'path' must not be empty")
+
+        leaf = path.pop()
+        for elem in path:
+            obj = obj.setdefault(elem, {})
+
+        if not isinstance(obj, MutableMapping):
+            raise ConfigException(
+                f"Invalid config path. Parent must be a mapping: '{path}'"
+            )
+
+        obj[leaf] = value
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.keys())
+
+    def keys(self, path: None | str | list[str] = None):
+        path = self.root + self.config.path_split(path)
+        return self.config.keys(path)
+
+    def __str__(self) -> str:
+        return json.dumps(
+            self.config.get(self.root), indent=4, sort_keys=False, default=str
+        )
+
+    def __repr__(self) -> str:
+        return (
+            self.__class__.__name__
+            + f"(root={self.root}): "
+            + self.__str__()
+            + f", name={self.config.user_config}, dir={self.config.search_path})"
+        )
 
 
 class Config:
@@ -41,16 +140,16 @@ class Config:
         self,
         user_config: None | str | list[str],
         *,
-        search_path: Path|list[Path] = Path("."),
-        default_config: None|str = "config",
-        separator: str = "."
+        search_path: Path | list[Path] = Path("."),
+        default_config: None | str = "config",
+        separator: str = ".",
     ):
         self.default_config = default_config
         self.user_config = self._init_user_config(user_config)
         self.search_path = force_list(search_path)
         self.separator = separator
 
-        self.config = [{}]
+        self.config: list[dict[str, Any]] = [{}]
 
         # Validate that all search path elements exist
         for _dir in self.search_path:
@@ -68,7 +167,7 @@ class Config:
         for config in self.user_config:
             self.load_user_config(config)
 
-    def _init_user_config(self, user_config: None|str|list[str]) -> list[str]:
+    def _init_user_config(self, user_config: None | str | list[str]) -> list[str]:
         """Create a list of user config names, from whatever the user provided"""
 
         if user_config is None:
@@ -79,8 +178,10 @@ class Config:
                 user_config = user_config[4:]
                 try:
                     user_config = os.environ[user_config]
-                except:     # pylint: disable=raise-missing-from
-                    raise ConfigException(f"Environment variable not found: '{user_config}'")
+                except:  # pylint: disable=raise-missing-from
+                    raise ConfigException(
+                        f"Environment variable not found: '{user_config}'"
+                    )
 
             user_config = [x.strip() for x in user_config.split(",")]
 
@@ -96,7 +197,8 @@ class Config:
                 return file
 
         raise ConfigException(
-            f"File not found in search path: file='{fname}', path={self.search_path}")
+            f"File not found in search path: file='{fname}', path={self.search_path}"
+        )
 
     def load_config(self, file: Path):
         """Load a config from the file specified"""
@@ -131,10 +233,11 @@ class Config:
         file = self.find_file(file)
         return self.load_config(file)
 
-    def _deep_dict_update(self,
+    def _deep_dict_update(
+        self,
         dest: MutableMapping[str, Any],
         source: Mapping[str, Any],
-        substitute: bool=False,
+        substitute: bool = False,
     ) -> MutableMapping[str, Any]:
         """Deep update dict 'd' with all elements from dict 'u' (recursively)"""
 
@@ -147,24 +250,23 @@ class Config:
 
         return dest
 
-
-    def _path_split(self, path: str|list[str]) -> list[str]:
+    def path_split(self, path: None | str | list[str]) -> list[str]:
         """Split the path by the configured separator, and remove empty elements"""
+
+        if path is None:
+            return []
 
         if isinstance(path, str):
             path = path.split(self.separator)
 
         return [x for x in path if x]
 
-    def to_dict(self,
-        root: None|str|list[str] = None,
-        substitute: bool=False
-    ):
+    def to_dict(self, root: None | str | list[str] = None, substitute: bool = False):
         """Create a dict of all the visible data. With 'root' provided,
         only the config below this path are copied into a dir.
         """
         if root is not None:
-            root = self._path_split(root)
+            root = self.path_split(root)
 
         rtn: dict[str, Any] = {}
         for level in reversed(self.config):
@@ -182,7 +284,7 @@ class Config:
 
         return rtn
 
-    def get_value(self, path: str|list[str]):
+    def get_value(self, path: str | list[str]) -> Any:
         """Get the config value corresponding to the 'path' provided.
 
         The path separator can be provided. Default separator is '.'.
@@ -191,17 +293,22 @@ class Config:
 
         get_value() return the raw-value. Consider using get() instead.
         """
-        path = self._path_split(path)
+        path = self.path_split(path)
 
         for level in self.config:
             try:
-                return du.deep_get(level, path)
+                rtn = du.deep_get(level, path)
+                if isinstance(rtn, dict):
+                    return _ConfigRef(self, path)
+
+                return rtn
+
             except KeyError:
                 pass
 
         raise KeyError(f"Key not found: '{path}'")
 
-    def __contains__(self, path: str|list[str]) -> bool:
+    def __contains__(self, path: str | list[str]) -> bool:
         """Check if value referred to by 'path' exists in the config.
         The path separator can be provided. Default separator is '.'.
         If the 'path' does exist, return True else False.
@@ -216,7 +323,25 @@ class Config:
         return self.get(path)
 
     def __len__(self) -> int:
-        return len(self.to_dict())
+        return len(self.keys())
+
+    def keys(self, path: None | str | list[str] = None) -> set[str]:
+        """Determine all keys"""
+        path = self.path_split(path)
+        rtn: set[str] = set()
+        for level in self.config:
+            try:
+                value = du.deep_get(level, path)
+                if isinstance(value, dict):
+                    for key in value:
+                        rtn.add(key)
+            except KeyError:
+                pass
+
+        return rtn
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.keys())
 
     def substitute_placeholders_in_str(self, value: str) -> str:
         """Substitute placeholders {..} in 'v'. 'v' can be of type str or list. Placeholders
@@ -253,10 +378,16 @@ class Config:
 
     def substitute_placeholders(self, value: T) -> T:
         """Return a new dict with all placeholders replaced"""
+        if isinstance(value, _ConfigRef):
+            return value
         if isinstance(value, Mapping):
-            return cast(T, {
-                key: self.substitute_placeholders(value) for key, value in value.items()
-            })
+            return cast(
+                T,
+                {
+                    key: self.substitute_placeholders(value)
+                    for key, value in value.items()
+                },
+            )
         if isinstance(value, list):
             return cast(T, [self.substitute_placeholders_in_str(x) for x in value])
         if isinstance(value, str):
@@ -267,7 +398,7 @@ class Config:
 
         return value
 
-    def get(self, path: str | list[str], default: Any=__MISSING__):
+    def get(self, path: str | list[str], default: Any = __MISSING__):
         """Get the config value referred to by 'path'.
 
         You may change the separator by providing a 'separator' parameter. Default is '.'.
@@ -280,7 +411,7 @@ class Config:
         If a path cannot be resolved, an exception is thrown if no 'default' parameter
         has been provided.
         """
-        path = self._path_split(path)
+        path = self.path_split(path)
 
         try:
             rtn = self.get_value(path)
@@ -293,7 +424,9 @@ class Config:
         try:
             rtn = self.substitute_placeholders(rtn)
         except Exception as exc:
-            raise ConfigException(f"Error while replacing placeholder: '{path}'") from exc
+            raise ConfigException(
+                f"Error while replacing placeholder: '{path}'"
+            ) from exc
 
         return rtn
 
@@ -316,7 +449,7 @@ class Config:
 
         obj = self.config[0]
 
-        path = self._path_split(path)
+        path = self.path_split(path)
         if len(path) == 0:
             raise ConfigException("Argument 'path' must not be empty")
 
@@ -325,10 +458,11 @@ class Config:
             obj = obj.setdefault(elem, {})
 
         if not isinstance(obj, MutableMapping):
-            raise ConfigException(f"Invalid config path. Parent must be a mapping: '{path}'")
+            raise ConfigException(
+                f"Invalid config path. Parent must be a mapping: '{path}'"
+            )
 
         obj[leaf] = value
-
 
     def __str__(self) -> str:
         return json.dumps(self.config, indent=4, sort_keys=False, default=str)
