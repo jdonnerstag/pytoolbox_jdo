@@ -15,3 +15,7 @@ The event is pretty much just a dict (json) that can arbitrarily be modified
 and enriched by ever step. The event is passed to the steps in the sequence
 defined.
 """
+
+from .event import Event
+from .pipeline_step import PipelineStep
+from .pipeline import Pipeline

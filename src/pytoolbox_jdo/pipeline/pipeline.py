@@ -27,8 +27,9 @@ class Pipeline(ContextDecorator):
     steps, initialize and shut them down, and invoke the steps in the
     defined sequence to process events."""
 
-    def __init__(self, step_class: Type):
+    def __init__(self, step_class: Type, step_dir: None|Path):
         """Constructor"""
+        super().__init__()
 
         self.step_class = step_class
 
@@ -46,7 +47,14 @@ class Pipeline(ContextDecorator):
         # Number of events processed
         self.event_count = 0
 
-        self.start_time = time.time()
+        self.start_time: float = 0
+
+        if step_dir:
+            if step_dir.is_dir():
+                self.load_pipeline(step_dir)
+            else:
+                raise PipelineException(f"Not a directory: {step_dir}")
+
 
     def add_pipeline(self, name: str):
         """Add a new pipeline (group of steps)"""
@@ -57,13 +65,45 @@ class Pipeline(ContextDecorator):
         assert isinstance(step, self.step_class)
         self.pipelines[name].append(step)
 
+
+    def load_step(self, file: Path):
+        """Load a PipelineStep from a file"""
+
+        mod = import_module_from_file(file)
+
+        # If both a file <name>.py and a directory <name> exist, then python will use the
+        # directory (package), which is not what we want. Hence: raise an exception
+        if mod.__package__ and (mod.__name__ == mod.__package__.split(".")[-1]):
+            raise PipelineException(
+                "Directory and file have the same name, except for the extension. " +
+                "Please rename either: %s", file)
+
+        # Make sure the module has a variable called ...
+        if "STEP" not in dir(mod):
+            raise PipelineException(f"Missing 'STEP' variable in '{file}'")
+
+        # Create an entry for the steps in a package if it doesn't exist yet
+        pipe_name = mod.__package__ or ""
+        self.add_pipeline(pipe_name)
+
+        if not issubclass(mod.STEP, self.step_class):
+            raise PipelineException(
+                f"STEP objects must of type {self.step_class.__name__}: '{file}'")
+
+        # Call the constructor of the step
+        try:
+            obj = mod.STEP(self, mod.__name__)
+            self.add_step(pipe_name, obj)
+        except BaseException as ex:
+            raise PipelineException(f"Failed to instantiate pipeline step: {file}") from ex
+
+
     def load_pipeline(self, path: Path):
         """Load all files (python modules) from the directory specified (recursive).
 
         Each directory is a python package and access to the python modules will be
         possible the python way.
         """
-
         assert path.is_dir(), f"Not a directory: {path}"
 
         logger.info("Load pipeline steps from '%s'", path)
@@ -73,37 +113,11 @@ class Pipeline(ContextDecorator):
         count = 0
         pipeline = {}
         for file in path.glob("**/*.py"):
-            if not file.name or file.name[0].isalnum() is False:
-                continue
-
-            mod = import_module_from_file(file)
-
-            # If both a file <name>.py and a directory <name> exist, then python will use the
-            # directory (package), which is not what we want. Hence: raise an exception
-            if mod.__package__ and (mod.__name__ == mod.__package__.split(".")[-1]):
-                raise PipelineException(
-                    "Directory and file have the same name, except for the extension. " +
-                    "Please rename either: %s", file)
-
-            # Make sure the module has a variable called ...
-            if "STEP" not in dir(mod):
-                raise PipelineException(f"Missing 'STEP' variable in '{file}'")
-
-            # Create an entry for the steps in a package if it doesn't exist yet
-            pipe_name = mod.__package__ or ""
-            self.add_pipeline(pipe_name)
-
-            if not issubclass(mod.STEP, self.step_class):
-                raise PipelineException(
-                    f"STEP objects must of type {self.step_class.__name__}: '{file}'")
-
-            # Call the constructor of the step
-            try:
-                obj = mod.STEP(self, mod.__name__)
-                self.add_step(pipe_name, obj)
+            if file.name and file.name[0].isalnum():
+                self.load_step(file)
                 count += 1
-            except BaseException as ex:
-                raise PipelineException(f"Failed to instantiate pipeline step: {file}") from ex
+            else:
+                logger.debug("Pipeline file ignored: %s", file)
 
         logger.info("Loaded %d pipelines and %d steps", len(pipeline), count)
         return self
@@ -148,7 +162,7 @@ class Pipeline(ContextDecorator):
         logger.info("Time spent on finalization: %s", self.elapsed(start_time))
 
 
-    def on_new_event_file(self, data, file):
+    def on_new_event_file(self, data, file: Path):
         """Start processing a new event file.
 
         Allow every step to pre-process the whole file ahead of each individual event.
@@ -167,7 +181,7 @@ class Pipeline(ContextDecorator):
         """Possibly be subclassed, this function invokes a step to process the event"""
         return step.main(event)
 
-    def exec_pipeline(self, pipeline: str, event):
+    def _exec_pipeline(self, pipeline: str, event):
         """Execute a specific pipeline"""
 
         #logger.debug("Launch pipeline: '%s'", name)
@@ -176,7 +190,7 @@ class Pipeline(ContextDecorator):
         for step in pipe:
             try:
                 # logger.debug(f"Execute pipeline: {name}.{step.step_name}")
-                event.trace.append(step.step_name)
+                event.trace(step.step_name, "enter")
                 if self.exec_step(pipeline, step, event) is True:
                     break
             except BaseException as ex:
@@ -185,7 +199,7 @@ class Pipeline(ContextDecorator):
         # logger.debug("Finished with pipeline: '%s'", name)
 
 
-    def process_event(self, event: Event, *, pipeline: str=""):
+    def process_event(self, pipeline: str, event: Event):
         """Execute the pipeline for event"""
         assert isinstance(event, Event)
 
@@ -203,7 +217,7 @@ class Pipeline(ContextDecorator):
         # logger.debug(f"Start processing event: {self.event_count}")
 
         try:
-            self.exec_pipeline(pipeline, event)
+            self._exec_pipeline(pipeline, event)
         except BaseException as ex:
             raise PipelineException(f"Error while executing pipeline '{pipeline}'") from ex
 
@@ -225,6 +239,9 @@ class Pipeline(ContextDecorator):
 
 
     def __enter__(self):
+        self.initialize()
+        self.finalize_steps()
+
         return self
 
 
