@@ -12,6 +12,9 @@ from pytoolbox_jdo import FileCache, GzFileMatcher, TarFileMatcher
 from pytoolbox_jdo import ZipFileMatcher, GitFileMatcher
 from pytoolbox_jdo import CloudFileMatcher
 
+
+data_dir = Path(__file__).parent / "data"
+
 def test_constructor():
     repo = FileCache(cache_dir=FileCache.default_tempdir())
     assert repo.cache_dir and repo.cache_dir.is_dir()
@@ -22,8 +25,8 @@ def test_gz():
     repo.register(GzFileMatcher("gz", repo.cache_subdir("gz")))
 
     repo.clear_cache()
-    file = "./tests/data/compress_test_file.txt"
-    cached_file = repo.resolve(file + ".gz")
+    file = data_dir / "compress_test_file.txt"
+    cached_file = repo.resolve(str(file) + ".gz")
     assert isinstance(cached_file, Path)
     assert cached_file.exists()
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
@@ -31,7 +34,7 @@ def test_gz():
             assert fd1.read() == fd2.read()
 
     # Opening it the 2nd time, should give me the cached one
-    cached_file = repo.resolve(file + ".gz")
+    cached_file = repo.resolve(str(file) + ".gz")
     assert isinstance(cached_file, Path)
     assert cached_file.exists()
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
@@ -42,34 +45,34 @@ def test_tar():
     repo = FileCache(cache_dir=FileCache.default_tempdir())
     assert repo.cache_dir
     repo.register(TarFileMatcher("tar", repo.cache_subdir("tar")))
-    file = "./tests/data/tests.tar"
+    file = data_dir / "data.tar"
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
-    assert cached_file.samefile(repo.cache_dir / "tar" / "tests.tar")
+    assert cached_file.samefile(repo.cache_dir / "tar" / "data.tar")
 
     # Run it a 2nd time, to definitely use the cache
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
-    assert cached_file.samefile(repo.cache_dir / "tar" / "tests.tar")
+    assert cached_file.samefile(repo.cache_dir / "tar" / "data.tar")
 
-    file = "./tests/data/tests.tar/tests/data/config.py"
+    file = data_dir / "data.tar/data/config.py"
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
     # Run it a 2nd time, to definitely use the cache
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
-    cached_file = repo.resolve("tests/data/config.py", tar="./tests/data/tests.tar")
+    cached_file = repo.resolve("data/config.py", tar=data_dir / "data.tar")
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
 
@@ -80,38 +83,38 @@ def test_tar_gz():
     repo.register(TarFileMatcher("tar", repo.cache_subdir("tar")))
     repo.register(GzFileMatcher("gz", repo.cache_subdir("gz")))
 
-    file = "./tests/data/tests.tar.gz"
+    file = data_dir / "data.tar.gz"
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
     assert repo.cache_dir
-    assert cached_file.samefile(repo.cache_dir / "tar" / "tests.tar.gz")
+    assert cached_file.samefile(repo.cache_dir / "tar" / "data.tar.gz")
 
     # 2nd attempt with cache already loaded
-    file = "./tests/data/tests.tar.gz"
+    file = data_dir / "data.tar.gz"
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
     assert repo.cache_dir
-    assert cached_file.samefile(repo.cache_dir / "tar" / "tests.tar.gz")
+    assert cached_file.samefile(repo.cache_dir / "tar" / "data.tar.gz")
 
-    file = "./tests/data/tests.tar.gz/tests/data/config.py"
+    file = data_dir / "data.tar.gz/data/config.py"
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "./config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
     # 2nd attempt with cache loaded
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "./config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
-    file = "./tests/data/config.py"
-    cached_file = repo.resolve(file, tar="./tests/data/tests.tar.gz")
+    file = "./data/config.py"
+    cached_file = repo.resolve(file, tar=data_dir / "data.tar.gz")
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "./config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
 
@@ -123,11 +126,11 @@ def test_plain():
     repo.register(GzFileMatcher("gz", repo.cache_subdir("gz")))
 
     # No tar, no gz, no nothing. Should still work.
-    file = "./tests/data/config.py"
+    file = data_dir / "config.py"
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
 
@@ -137,37 +140,37 @@ def test_zip():
 
     repo.register(ZipFileMatcher("zip", repo.cache_subdir("zip")))
 
-    file = "./tests/data/tests.zip"
+    file = data_dir / "data.zip"
     cached_file = repo.resolve(file, pwd="test")
     assert isinstance(cached_file, Path)
     assert repo.cache_dir
-    assert cached_file.samefile(repo.cache_dir / "zip" / "tests.zip")
+    assert cached_file.samefile(repo.cache_dir / "zip" / "data.zip")
 
     # 2nd attempt with cache already loaded
     cached_file = repo.resolve(file)
     assert isinstance(cached_file, Path)
     assert repo.cache_dir
-    assert cached_file.samefile(repo.cache_dir / "zip" / "tests.zip")
+    assert cached_file.samefile(repo.cache_dir / "zip" / "data.zip")
 
-    file = "./tests/data/tests.zip/tests/data/config.py"
+    file = data_dir / "data.zip/data/config.py"
     cached_file = repo.resolve(file, pwd="test")
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "./config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
     # 2nd attempt with cache loaded
     cached_file = repo.resolve(file, pwd="test")
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "./config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
-    file = "tests/data/config.py"
-    cached_file = repo.resolve(file, zip="./tests/data/tests.zip", pwd="test")
+    file = data_dir / "config.py"
+    cached_file = repo.resolve(file, zip=data_dir / "data.zip", pwd="test")
     assert isinstance(cached_file, Path)
     with cached_file.open(mode="rt", encoding="utf-8") as fd1:
-        with open("./tests/data/config.py", mode="rt", encoding="utf-8") as fd2:
+        with open(data_dir / "./config.py", mode="rt", encoding="utf-8") as fd2:
             assert fd1.read() == fd2.read()
 
 def test_git():

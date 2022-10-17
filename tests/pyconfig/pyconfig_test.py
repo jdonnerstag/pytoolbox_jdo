@@ -8,17 +8,24 @@ from pathlib import Path
 import pytest
 
 from pytoolbox_jdo.pyconfig import Config, ConfigException
+import pytoolbox_jdo.import_module
 
+
+data_dir = Path(__file__).parent / "data"
+
+def setup_module(_module):
+    # This is a global variable and some test might have set it already
+    pytoolbox_jdo.import_module.modules.clear()
 
 def test_constructor():
     # Create an empty Config. No loading of any config
     cfg = Config(user_config=None, default_config=None)
     assert len(cfg) == 0
 
-    cfg = Config(search_path=Path("./tests/data"), user_config=None)
+    cfg = Config(search_path=data_dir, user_config=None)
     assert cfg
     # __file__ gets automatically added
-    assert cfg.get("__file__").replace("\\", "/").endswith("/config.py")
+    assert cfg.get("__file__").name == "config.py"
 
     with pytest.raises(Exception):
         assert cfg.get("not-exist")
@@ -27,50 +34,50 @@ def test_constructor():
     assert cfg.get("version") == 1
 
     # This one is only available in config-linux
-    cfg = Config(search_path=Path("./tests/data"), user_config="linux")
+    cfg = Config(search_path=data_dir, user_config="linux")
     assert cfg.get("linux_only") == "linux"
-    assert cfg.config[1]["__file__"].replace("\\", "/").endswith("/config-linux.py")
-    assert cfg.config[2]["__file__"].replace("\\", "/").endswith("/config.py")
+    assert cfg.config[1]["__file__"].name == "config-linux.py"
+    assert cfg.config[2]["__file__"].name == "config.py"
 
     with pytest.raises(ConfigException):
-        Config(search_path=Path("./tests/data"), user_config="error")
+        Config(search_path=data_dir, user_config="error")
 
     with pytest.raises(ConfigException):
-        Config(search_path=Path("./tests/data"), user_config="invalid-filename")
+        Config(search_path=data_dir, user_config="invalid-filename")
 
     with pytest.raises(ConfigException):
         Config(search_path=Path("./tests/invalid_dir"), user_config=None)
 
     # This one is only available in config-linux
-    cfg = Config(search_path=Path("./tests/data"), user_config="dev,linux")
+    cfg = Config(search_path=data_dir, user_config="dev,linux")
     assert cfg.get("linux_only") == "linux"
     assert cfg.get("development_mode") is True
-    assert cfg.config[1]["__file__"].replace("\\", "/").endswith("/config-linux.py")
-    assert cfg.config[2]["__file__"].replace("\\", "/").endswith("/config-dev.py")
-    assert cfg.config[3]["__file__"].replace("\\", "/").endswith("/config.py")
+    assert cfg.config[1]["__file__"].name == "config-linux.py"
+    assert cfg.config[2]["__file__"].name == "config-dev.py"
+    assert cfg.config[3]["__file__"].name == "config.py"
 
     # This one is only available in config-linux
-    cfg = Config(search_path=Path("./tests/data"), user_config="dev, linux")
+    cfg = Config(search_path=data_dir, user_config="dev, linux")
     assert cfg.get("linux_only") == "linux"
     assert cfg.get("development_mode") is True
 
     # This one is only available in config-linux
-    path = [Path("."), Path("./tests/data/users"), Path("./tests/data")]
+    path = [Path("."), data_dir / "users", data_dir]
     cfg = Config(search_path=path, user_config=["me", "linux"])
-    assert cfg.config[1]["__file__"].replace("\\", "/").endswith("/config-linux.py")
-    assert cfg.config[2]["__file__"].replace("\\", "/").endswith("/users/config-me.py")
-    assert cfg.config[3]["__file__"].replace("\\", "/").endswith("/config.py")
+    assert cfg.config[1]["__file__"].as_posix().endswith("/data/config-linux.py")
+    assert cfg.config[2]["__file__"].as_posix().endswith("/users/config-me.py")
+    assert cfg.config[3]["__file__"].as_posix().endswith("/data/config.py")
 
     # Python module config-dev.py has previously been loaded from ./test/data.
     # The search path below will find the file in ./test/data/users and try to
     # import it. Python, by default, continues without an exception. We
     # want to know and throw an exception
     with pytest.raises(Exception):
-        path = [Path("."), Path("./tests/data/users"), Path("./tests/data")]
+        path = [Path("."), data_dir / "users", data_dir]
         cfg = Config(search_path=path, user_config="dev")
 
 def test_to_dict():
-    cfg = Config(search_path=Path("./tests/data"), user_config="linux")
+    cfg = Config(search_path=data_dir, user_config="linux")
     data = cfg.to_dict()
     assert data["linux_only"] == "linux"
     assert data["version"] == 1
@@ -102,7 +109,7 @@ def test_to_dict():
 
 
 def test_get_value():
-    cfg = Config(search_path=Path("./tests/data"), user_config="linux")
+    cfg = Config(search_path=data_dir, user_config="linux")
     assert cfg.get("linux_only") == "linux"
     assert cfg.get("version") == 1
     assert cfg.get(["db", "batch_size"]) == 1000
@@ -123,7 +130,7 @@ def test_get_value():
     assert cfg.get_value("db.connection_string") == "dbadmin/my-silly-pass@mydatabase.mycompany.com"
 
 def test_placeholder():
-    cfg = Config(search_path=Path("./tests/data"), user_config="dev")
+    cfg = Config(search_path=data_dir, user_config="dev")
     assert cfg.get("project_root") == "C:\\source_code\\my_project"
     assert cfg.get_value("git.manual_files_git_repo") == "{project_root}\\files"
     assert cfg.get("git.manual_files_git_repo") == "C:\\source_code\\my_project\\files"
@@ -166,7 +173,7 @@ def test_placeholder():
     assert cfg.get("logging")["handlers"]["my_app"]["filename"] == "/temp/logs/my_app.123.log"
 
 def test_set():
-    cfg = Config(search_path=Path("./tests/data"), user_config="dev")
+    cfg = Config(search_path=data_dir, user_config="dev")
 
     cfg.set("logging.handlers.my_app.filename", "this is a deep test")
     assert cfg.get("logging.handlers.my_app.filename") == "this is a deep test"

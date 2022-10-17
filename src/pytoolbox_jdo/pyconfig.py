@@ -119,7 +119,7 @@ class Config:
                 f"CONFIG must be a Mapping: '{file}', CONFIG={module.CONFIG}"
             )
 
-        module.CONFIG["__file__"] = module.__file__
+        module.CONFIG["__file__"] = file.resolve()
         config = module.CONFIG
         self.config.insert(1, config)
         return config

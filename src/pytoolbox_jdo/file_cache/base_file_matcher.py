@@ -7,7 +7,7 @@ import abc
 from os import PathLike
 from pathlib import Path
 from typing import Any, Mapping
-from ..file_cache import FileTypeHandler
+from ..file_cache.file_cache import FileTypeHandler
 
 
 class BaseFileMatcher(FileTypeHandler, metaclass=abc.ABCMeta):
